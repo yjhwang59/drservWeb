@@ -1,0 +1,35 @@
+# 確保所有文字檔案使用 UTF-8 編碼
+* text=auto eol=lf
+
+# 明確指定 Markdown 檔案為 UTF-8
+*.md text eol=lf charset=utf-8
+
+# 程式碼檔案
+*.ts text eol=lf charset=utf-8
+*.tsx text eol=lf charset=utf-8
+*.js text eol=lf charset=utf-8
+*.jsx text eol=lf charset=utf-8
+*.json text eol=lf charset=utf-8
+*.html text eol=lf charset=utf-8
+*.css text eol=lf charset=utf-8
+
+# 設定檔
+*.config text eol=lf charset=utf-8
+*.conf text eol=lf charset=utf-8
+
+# PowerShell 腳本（Windows 使用 CRLF）
+*.ps1 text eol=crlf charset=utf-8
+*.bat text eol=crlf charset=utf-8
+*.cmd text eol=crlf charset=utf-8
+
+# 二進位檔案
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
