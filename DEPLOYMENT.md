@@ -38,7 +38,7 @@ npm run build
    - **根目錄**：留空
 5. 儲存並部署，完成後會得到 `https://<專案名>.pages.dev`，可在 Pages 設定中綁定自訂網域
 
-本專案已包含 `public/_redirects`，可讓 SPA 路由（如重新整理子路徑）正常運作。
+使用 Workers 部署時，SPA 路由由 `wrangler.jsonc` 的 `not_found_handling: "single-page-application"` 處理，無需 `_redirects`。
 
 #### 方式 B：本機 Wrangler 上傳
 
