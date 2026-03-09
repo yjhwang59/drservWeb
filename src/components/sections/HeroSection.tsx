@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 export const HeroSection = () => {
   return (
-    <section id="hero" className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 text-white overflow-hidden">
+    <section id="hero" className="relative min-h-screen flex flex-col bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 text-white overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -14,8 +14,10 @@ export const HeroSection = () => {
         }} />
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* 留出固定導覽列高度(5rem)，內容在可視區域內置中，避免標題被裁切 */}
+      <div className="relative z-10 flex-1 flex items-center justify-center min-h-[calc(100vh-5rem)] pt-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -69,6 +71,7 @@ export const HeroSection = () => {
               </motion.div>
             </Link>
           </motion.div>
+        </div>
         </div>
       </div>
     </section>

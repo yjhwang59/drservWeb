@@ -23,14 +23,42 @@ npm run build
 
 ## 部署選項
 
-### 1. Vercel 部署（推薦）
+### 1. Cloudflare Pages 部署（推薦，免伺服器）
+
+將網站直接部署到 Cloudflare 代管，免自架伺服器、自動 HTTPS、全球 CDN。
+
+#### 方式 A：透過 Git 連動（推薦）
+
+1. 將專案推送到 GitHub（例如 https://github.com/yjhwang59/drservWeb）
+2. 登入 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **建立** → **Pages** → **連接到 Git**
+3. 選擇 **GitHub** 並授權，選取 `drservWeb` 儲存庫
+4. 建置設定（通常會自動偵測 Vite）：
+   - **建置命令**：`npm run build`
+   - **建置輸出目錄**：`dist`
+   - **根目錄**：留空
+5. 儲存並部署，完成後會得到 `https://<專案名>.pages.dev`，可在 Pages 設定中綁定自訂網域
+
+本專案已包含 `public/_redirects`，可讓 SPA 路由（如重新整理子路徑）正常運作。
+
+#### 方式 B：本機 Wrangler 上傳
+
+1. 安裝 Wrangler：`npm install -g wrangler`
+2. 登入：`wrangler login`
+3. 建置並上傳：
+   ```bash
+   npm run build
+   npx wrangler pages deploy dist --project-name=drserv-web
+   ```
+4. 首次會提示建立 Pages 專案，之後每次執行上述兩行即可更新
+
+### 2. Vercel 部署
 
 1. 將專案推送到 GitHub
 2. 在 [Vercel](https://vercel.com) 導入專案
 3. Vercel 會自動檢測 Vite 專案並進行構建
 4. 部署完成後會自動獲得 HTTPS 域名
 
-### 2. Netlify 部署
+### 3. Netlify 部署
 
 1. 將專案推送到 GitHub
 2. 在 [Netlify](https://netlify.com) 導入專案
@@ -38,7 +66,7 @@ npm run build
 4. 發布目錄：`dist`
 5. 部署完成
 
-### 3. GitHub Pages 部署
+### 4. GitHub Pages 部署
 
 1. 安裝 `gh-pages`：`npm install --save-dev gh-pages`
 2. 在 `package.json` 添加部署腳本：
@@ -49,7 +77,9 @@ npm run build
    ```
 3. 執行：`npm run deploy`
 
-### 4. 傳統伺服器部署
+### 5. 傳統伺服器部署（含 Cloudflare DNS）
+
+若使用自架伺服器（IIS/Nginx），並以 Cloudflare 做 DNS 與 CDN，請參考專案內 **部署指南-Cloudflare與防火牆設定.md**。簡要步驟：
 
 1. 執行 `npm run build`
 2. 將 `dist` 目錄內容上傳到伺服器
