@@ -10,8 +10,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy",
-    "d1:migrate": "wrangler d1 migrations apply myd1_db",
-    "d1:migrate:local": "wrangler d1 migrations apply myd1_db --local",
+    "d1:migrate": "wrangler d1 execute myd1_db --remote --file=migrations/0001_create_inquiries.sql",
+    "d1:migrate:local": "wrangler d1 execute myd1_db --local --file=migrations/0001_create_inquiries.sql",
     "start:frontend": "vite",
     "start:backend": "cd server && npm run start",
     "start": "concurrently -n \"前端,後端\" -c blue,green \"npm run start:frontend\" \"npm run start:backend\""
