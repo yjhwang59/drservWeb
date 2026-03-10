@@ -1,20 +1,21 @@
-# 部署指南 — Cloudflare Pages + D1 + Resend
+# 部署指南 — Cloudflare Worker + D1 + Resend
 
-本專案使用 **Cloudflare Pages**（前端靜態網站）+ **Pages Functions**（後端 API）+ **D1**（資料庫）+ **Resend**（寄信）。
+本專案使用 **Cloudflare Worker**（`worker.ts` 入口）+ **Assets**（靜態 SPA）+ **D1**（資料庫）+ **Resend**（寄信）。
 
 ---
 
 ## 架構總覽
 
 ```
-使用者瀏覽器
-    │
-    ├── GET /*           → Cloudflare Pages（靜態 SPA）
-    └── POST /api/*      → Pages Functions（serverless 後端）
-                               │
-                               ├── D1 資料庫（儲存洽詢表單）
-                               └── Resend API（寄送通知信）
+請求 → Cloudflare Worker（worker.ts）
+  ├─ 靜態檔案（dist/）→ 由 assets 設定直接回應
+  ├─ POST /api/inquiry → 由 worker.ts 中的 handleInquiry() 處理
+  │                          ├── 寫入 D1 資料庫
+  │                          └── 透過 Resend API 寄送通知信
+  └─ 其他路徑 → SPA fallback（index.html）
 ```
+
+> **注意**：專案中也有 `functions/` 目錄（Pages Functions 格式），但在 Worker 部署模式下不生效。實際的 API 邏輯在 `worker.ts`。
 
 ---
 
@@ -72,8 +73,8 @@ CREATE TABLE IF NOT EXISTS inquiries (
 ### 步驟 5：建立 Cloudflare API Token
 
 1. Cloudflare Dashboard → **My Profile** → **API Tokens** → **Create Token**
-2. 使用 **Edit Cloudflare Workers** 模板，確保權限包含：
-   - Account: Cloudflare Pages — Edit
+2. 使用 **Create Custom Token**，確保權限包含：
+   - Account: Workers Scripts — Edit
    - Account: D1 — Edit
 3. 記下產生的 Token
 
@@ -86,33 +87,31 @@ CREATE TABLE IF NOT EXISTS inquiries (
 | `CLOUDFLARE_API_TOKEN` | 步驟 5 取得的 API Token |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右側的 Account ID |
 
-### 步驟 7：在 Cloudflare Pages 設定環境變數（Secrets）
+### 步驟 7：在 Cloudflare Worker 設定環境變數（Secrets）
 
-1. 首次部署後（見下方），進入 Cloudflare Dashboard → **Workers & Pages** → 你的 Pages 專案
+1. 首次部署後（見下方），進入 Cloudflare Dashboard → **Workers & Pages** → 你的 Worker 專案（`drserv`）
 2. **Settings** → **Bindings** → 新增：
    - **D1 Database**: 變數名 `DB`，選擇 `drserv-inquiries`
 3. **Settings** → **Environment variables** → 新增：
    - `RESEND_API_KEY` = 你的 Resend API Key（設為 Encrypt）
-   - `MAIL_RECIPIENT` = `service@drserv.com.tw`
+   - `MAIL_RECIPIENT` = `yjhwang@drserv.com.tw`（可用逗號分隔多個收件人，例如 `yjhwang@drserv.com.tw,service@drserv.com.tw`）
 
 ---
 
 ## 部署方式
 
-### 方式 A：GitHub Actions 自動部署（推薦）
+### 方式 A：GitHub Actions 自動部署（推薦，目前使用中）
 
 每次 push 到 `main` 分支，GitHub Actions 會自動：
 1. 安裝依賴並建置前端
 2. 執行 D1 資料庫遷移
-3. 部署到 Cloudflare Pages
+3. 以 Worker 模式部署到 Cloudflare（`wrangler deploy`）
 
 只需 `git push` 即可！
 
 ### 方式 B：Cloudflare Dashboard Git 連動
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
-2. 選擇你的 GitHub 儲存庫
-3. 建置組態設定（**已驗證可用的設定**）：
+Dashboard 也曾設定 Git 連動建置，**已驗證可用的設定**：
 
    | 欄位 | 值 |
    |------|-----|
@@ -122,11 +121,9 @@ CREATE TABLE IF NOT EXISTS inquiries (
    | 路徑 (Root directory) | `/` |
    | 建置輸出目錄 (Build output) | `dist` |
 
-4. 儲存並部署
-
-> **重要：** `wrangler.jsonc` 中不要包含 `pages_build_output_dir`，否則 Cloudflare 會嘗試用 `wrangler deploy` 部署並導致認證錯誤。部署命令填 `echo deployed` 讓 Pages 原生處理部署即可。
+> **注意**：若同時啟用 GitHub Actions 和 Dashboard Git 連動，每次 push 會觸發兩次部署，建議只啟用其中一種。
 >
-> 注意：此方式不會自動執行 D1 遷移，需手動在 Dashboard 的 D1 Console 執行 SQL。
+> 此方式不會自動執行 D1 遷移，需手動在 Dashboard 的 D1 Console 執行 SQL。
 
 ---
 
@@ -148,9 +145,9 @@ Vite 會自動將 `/api` 請求代理到後端。
 
 ## 自訂網域
 
-部署完成後，你會得到一個 `https://drserv.pages.dev` 網址。要綁定自訂網域：
+部署完成後，你會得到一個 `https://drserv.service168.workers.dev` 網址。要綁定自訂網域：
 
-1. Cloudflare Dashboard → 你的 Pages 專案 → **Custom domains**
+1. Cloudflare Dashboard → 你的 Worker 專案（`drserv`）→ **Settings** → **Domains & Routes**
 2. 新增網域（如 `www.drserv.com.tw`）
 3. 按照指示設定 DNS 記錄
 
@@ -159,18 +156,20 @@ Vite 會自動將 `/api` 請求代理到後端。
 ## 檔案結構說明
 
 ```
-functions/                  ← Cloudflare Pages Functions（後端 API）
-  types.ts                  ← 環境變數型別定義（D1、Resend 等）
-  api/
-    _middleware.ts           ← CORS 中間件
-    health.ts               ← GET /api/health 健康檢查
-    inquiry.ts              ← POST /api/inquiry 洽詢表單 API
+worker.ts                   ← ★ Cloudflare Worker 入口（API 路由 + fetch handler）
+wrangler.jsonc              ← Cloudflare 設定檔（assets、D1 binding）
+dist/                       ← Vite 建置的靜態檔案（由 assets 設定服務）
 migrations/
   0001_create_inquiries.sql ← D1 資料庫 schema
-wrangler.jsonc              ← Cloudflare 設定檔
+functions/                  ← ⚠️ Pages Functions 格式（Worker 模式下不生效）
+  types.ts                  ← 環境變數型別定義
+  api/
+    _middleware.ts           ← CORS 中間件
+    health.ts               ← GET /api/health
+    inquiry.ts              ← POST /api/inquiry
 .dev.vars                   ← 本地開發環境變數（不上傳 git）
 .github/workflows/deploy.yml ← GitHub Actions 自動部署
-server/                     ← 原有 Express 後端（本地開發用）
+server/                     ← 原有 Express 後端（僅本地開發用）
 ```
 
 ---
@@ -178,12 +177,12 @@ server/                     ← 原有 Express 後端（本地開發用）
 ## 疑難排解
 
 ### API 回傳 500 錯誤
-- 檢查 Cloudflare Pages → **Functions** → **Logs** 查看錯誤訊息
+- 檢查 Cloudflare Dashboard → Worker（`drserv`）→ **Logs** 查看錯誤訊息
 - 確認 D1 binding 名稱為 `DB`
 - 確認資料表已建立
 
 ### 郵件未寄出
-- 確認 `RESEND_API_KEY` 已設定在 Pages 環境變數中
+- 確認 `RESEND_API_KEY` 已設定在 Worker 環境變數中
 - 如果用自訂寄件網域，確認已在 Resend 驗證 `drserv.com.tw`
 - 查看 Resend Dashboard 的 Logs 確認發送狀態
 

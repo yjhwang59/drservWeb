@@ -45,12 +45,30 @@ function buildEmailBody(data: InquiryData): string {
   ].join('\n');
 }
 
+function parseRecipients(recipientStr: string): string[] {
+  return recipientStr
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 async function sendEmail(
   apiKey: string,
-  recipient: string,
+  recipientStr: string,
   data: InquiryData,
 ): Promise<{ sent: boolean; error?: string }> {
-  if (!apiKey) return { sent: false, error: 'RESEND_API_KEY not configured' };
+  if (!apiKey) {
+    console.error('[sendEmail] RESEND_API_KEY not configured');
+    return { sent: false, error: 'RESEND_API_KEY not configured' };
+  }
+
+  const recipients = parseRecipients(recipientStr);
+  if (recipients.length === 0) {
+    console.error('[sendEmail] No valid recipients');
+    return { sent: false, error: 'No valid recipients' };
+  }
+
+  console.log(`[sendEmail] Sending to: ${recipients.join(', ')}`);
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -61,7 +79,7 @@ async function sendEmail(
       },
       body: JSON.stringify({
         from: `捨得資訊官網 <noreply@drserv.com.tw>`,
-        to: [recipient],
+        to: recipients,
         subject: `[官網洽詢] ${data.organization} - ${data.inquiryType}`,
         text: buildEmailBody(data),
       }),
@@ -69,10 +87,13 @@ async function sendEmail(
 
     if (!res.ok) {
       const err = await res.text();
+      console.error(`[sendEmail] Resend API error (${res.status}): ${err}`);
       return { sent: false, error: err };
     }
+    console.log('[sendEmail] Email sent successfully');
     return { sent: true };
   } catch (err) {
+    console.error(`[sendEmail] Exception: ${String(err)}`);
     return { sent: false, error: String(err) };
   }
 }
@@ -110,8 +131,13 @@ async function handleInquiry(request: Request, env: Env): Promise<Response> {
       .bind(data.organization, data.contactName, data.phone, data.email, data.inquiryType, data.message)
       .run();
 
-    const recipient = env.MAIL_RECIPIENT || 'service@drserv.com.tw';
-    const mailResult = await sendEmail(env.RESEND_API_KEY, recipient, data);
+    const recipientStr = env.MAIL_RECIPIENT || 'service@drserv.com.tw';
+    console.log(`[handleInquiry] DB insert OK (id=${result.meta?.last_row_id}), sending email to: ${recipientStr}`);
+    const mailResult = await sendEmail(env.RESEND_API_KEY, recipientStr, data);
+
+    if (!mailResult.sent) {
+      console.error(`[handleInquiry] Email failed: ${mailResult.error}`);
+    }
 
     return Response.json(
       {

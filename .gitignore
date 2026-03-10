@@ -20,6 +20,9 @@ server/data
 .wrangler
 .dev.vars
 
+# 測試用
+test-payload.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
