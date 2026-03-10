@@ -50,8 +50,9 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+        <div className="border-t border-gray-800 mt-8 pt-8 text-sm flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>&copy; {currentYear} {companyInfo.name}. All rights reserved.</p>
+          <p className="text-gray-500">v{__APP_VERSION__}</p>
         </div>
       </div>
     </footer>

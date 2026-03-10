@@ -27,11 +27,13 @@ export const SEO = ({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content="https://www.drserv.com.tw" />
+      <meta property="og:image" content="https://www.drserv.com.tw/logoDrServ.PNG" />
       
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content="https://www.drserv.com.tw/logoDrServ.PNG" />
       
       {/* Structured Data */}
       <script type="application/ld+json">
