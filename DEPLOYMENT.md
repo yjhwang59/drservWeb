@@ -112,11 +112,20 @@ CREATE TABLE IF NOT EXISTS inquiries (
 
 1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
 2. 選擇你的 GitHub 儲存庫
-3. 建置設定：
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
+3. 建置組態設定（**已驗證可用的設定**）：
+
+   | 欄位 | 值 |
+   |------|-----|
+   | 組建命令 (Build command) | `npm run build` |
+   | 部署命令 (Deploy command) | `echo deployed` |
+   | 非生產分支部署命令 | `npx wrangler versions upload` |
+   | 路徑 (Root directory) | `/` |
+   | 建置輸出目錄 (Build output) | `dist` |
+
 4. 儲存並部署
 
+> **重要：** `wrangler.jsonc` 中不要包含 `pages_build_output_dir`，否則 Cloudflare 會嘗試用 `wrangler deploy` 部署並導致認證錯誤。部署命令填 `echo deployed` 讓 Pages 原生處理部署即可。
+>
 > 注意：此方式不會自動執行 D1 遷移，需手動在 Dashboard 的 D1 Console 執行 SQL。
 
 ---
