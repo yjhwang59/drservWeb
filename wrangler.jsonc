@@ -2,8 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "drserv",
   "compatibility_date": "2025-09-27",
-  "assets": {
-    "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "myd1_db",
+      "database_id": "36c4deed-9ddb-4531-a041-0041b152b8e4"
+    }
+  ]
 }

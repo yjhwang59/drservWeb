@@ -41,11 +41,13 @@ export const Header = () => {
             smooth={true}
             offset={-80}
             duration={500}
-            className="flex items-center space-x-2 cursor-pointer"
+            className="flex items-center cursor-pointer"
           >
-            <div className="text-2xl font-bold text-primary-700">
-              {companyInfo.name}
-            </div>
+            <img
+              src="/logoDrServ.PNG"
+              alt={companyInfo.name}
+              className="h-12 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}

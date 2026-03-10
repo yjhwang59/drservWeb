@@ -31,17 +31,25 @@ export const ContactSection = () => {
   });
 
   const onSubmit = async (data: ContactFormData) => {
-    // 這裡可以整合後端API或EmailJS
-    console.log('Form submitted:', data);
-    
-    // 模擬API調用
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    setIsSubmitted(true);
-    reset();
-    
-    // 3秒後重置提交狀態
-    setTimeout(() => setIsSubmitted(false), 3000);
+    try {
+      const res = await fetch('/api/inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || '送出失敗，請稍後再試');
+      }
+
+      setIsSubmitted(true);
+      reset();
+      setTimeout(() => setIsSubmitted(false), 3000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '送出失敗，請稍後再試';
+      window.alert(message);
+    }
   };
 
   return (

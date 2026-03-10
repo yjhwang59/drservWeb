@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# API 後端（本地開發用）
+server/.env
+server/data
+
+# Cloudflare
+.wrangler
+.dev.vars
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

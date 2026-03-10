@@ -41,7 +41,7 @@ export const SEO = ({
           "name": companyInfo.name,
           "alternateName": companyInfo.nameEn,
           "url": "https://www.drserv.com.tw",
-          "logo": "https://www.drserv.com.tw/logo.png",
+          "logo": "https://www.drserv.com.tw/logoDrServ.PNG",
           "contactPoint": {
             "@type": "ContactPoint",
             "telephone": companyInfo.phone,
