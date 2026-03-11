@@ -17,9 +17,10 @@ export function InquiryTypesPage() {
   const load = () => {
     setLoading(true);
     setError(null);
-    // 有金鑰時用 admin API，無金鑰時用公開 API 仍可讀取列表
+    // 有金鑰時用 admin API（須帶 Authorization），無金鑰時用公開 API 讀取列表
     const url = hasAdminKey() ? '/api/admin/inquiry-types' : '/api/inquiry-types';
-    fetch(url)
+    const doFetch = hasAdminKey() ? adminFetch : fetch;
+    doFetch(url)
       .then((res) => {
         if (res.status === 501) {
           setError('後端尚未設定 ADMIN_API_KEY。請在 Cloudflare Worker 的 Variables 中新增 ADMIN_API_KEY，並在後台上方輸入相同金鑰。');

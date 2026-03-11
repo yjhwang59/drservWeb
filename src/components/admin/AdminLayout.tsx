@@ -10,10 +10,13 @@ import {
   Menu,
   X,
   Key,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import type { MenuItemNode } from '../../types/admin';
-import { hasAdminKey, setAdminApiKey } from '../../lib/adminApi';
+import { hasAdminKey, setAdminApiKey, verifyAdminKey } from '../../lib/adminApi';
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -136,6 +139,43 @@ function AdminKeyBanner({ onSet }: { onSet: () => void }) {
   );
 }
 
+function VerifyKeyButton() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleVerify = async () => {
+    setResult(null);
+    setLoading(true);
+    const r = await verifyAdminKey();
+    setLoading(false);
+    setResult({ ok: r.ok, message: r.message });
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handleVerify}
+        disabled={loading}
+        className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+        {loading ? '驗證中...' : '驗證連線'}
+      </button>
+      {result && (
+        <span
+          className={`inline-flex items-center gap-1 text-sm ${
+            result.ok ? 'text-green-700' : 'text-red-700'
+          }`}
+        >
+          {result.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+          {result.message}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function AdminLayout() {
   const [menu, setMenu] = useState<MenuItemNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +249,7 @@ export function AdminLayout() {
             <Menu size={24} />
           </button>
           {!hasAdminKey() && <AdminKeyBanner onSet={() => window.location.reload()} />}
+          {hasAdminKey() && <VerifyKeyButton />}
         </header>
         <main className="flex-1 p-6">
           <Outlet />
