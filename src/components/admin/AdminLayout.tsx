@@ -9,9 +9,11 @@ import {
   ChevronRight,
   Menu,
   X,
+  Key,
   type LucideIcon,
 } from 'lucide-react';
 import type { MenuItemNode } from '../../types/admin';
+import { hasAdminKey, setAdminApiKey } from '../../lib/adminApi';
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -88,6 +90,52 @@ function MenuItem({ item, depth = 0 }: { item: MenuItemNode; depth?: number }) {
   );
 }
 
+function AdminKeyBanner({ onSet }: { onSet: () => void }) {
+  const [key, setKey] = useState('');
+  const [collapsed, setCollapsed] = useState(true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = key.trim();
+    if (!v) return;
+    setAdminApiKey(v);
+    onSet();
+  };
+
+  return (
+    <div className="flex flex-1 flex-wrap items-center gap-2 py-2">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-800">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="inline-flex items-center gap-1.5 font-medium"
+        >
+          <Key size={16} />
+          {collapsed ? '後台未設定 API 金鑰，按此設定' : '取消'}
+        </button>
+      </div>
+      {!collapsed && (
+        <form onSubmit={handleSubmit} className="inline-flex flex-wrap items-center gap-2">
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="請輸入與後端 ADMIN_API_KEY 相同的金鑰"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm min-w-[200px]"
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            className="rounded bg-primary-600 px-3 py-1.5 text-sm text-white hover:bg-primary-700"
+          >
+            設定並重新載入
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function AdminLayout() {
   const [menu, setMenu] = useState<MenuItemNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +199,7 @@ export function AdminLayout() {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-14 items-center border-b border-gray-200 bg-white px-4">
+        <header className="sticky top-0 z-20 flex h-14 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-4">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -160,6 +208,7 @@ export function AdminLayout() {
           >
             <Menu size={24} />
           </button>
+          {!hasAdminKey() && <AdminKeyBanner onSet={() => window.location.reload()} />}
         </header>
         <main className="flex-1 p-6">
           <Outlet />

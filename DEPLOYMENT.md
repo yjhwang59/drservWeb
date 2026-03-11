@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
 3. **Settings** → **Environment variables** → 新增：
    - `RESEND_API_KEY` = 你的 Resend API Key（設為 Encrypt）
    - `MAIL_RECIPIENT` = `yjhwang@drserv.com.tw`（可用逗號分隔多個收件人，例如 `yjhwang@drserv.com.tw,service@drserv.com.tw`）
+   - **後台管理**：`ADMIN_API_KEY` = 自訂一組金鑰字串（建議隨機長字串，設為 Encrypt）。設定後，在 https://www.drserv.com.tw/admin 頁面上方「後台未設定 API 金鑰」處輸入相同金鑰，即可啟用洽詢內容與表單回覆的 CRUD。
 
 ---
 
@@ -190,3 +191,7 @@ server/                     ← 原有 Express 後端（僅本地開發用）
 - Windows ARM64 目前不支援 workerd（wrangler 的本地執行環境）
 - 改用 GitHub Actions 部署，或在 x64 電腦上操作
 - 本地開發繼續使用 `npm run start`（Express 後端）
+
+### 後台顯示「後台未設定 ADMIN_API_KEY」或「伺服器錯誤」
+- **ADMIN_API_KEY**：在 Cloudflare Dashboard → 你的 Worker（`drserv`）→ **Settings** → **Environment variables** 新增變數 `ADMIN_API_KEY`（值為自訂金鑰，建議 Encrypt）。部署後，開啟 https://www.drserv.com.tw/admin ，在頁面上方點「後台未設定 API 金鑰」→ 輸入相同金鑰 →「設定並重新載入」。
+- **伺服器錯誤／列表為空**：確認 D1 已執行 migrations（CI 會自動跑 0002、0003、0004）。若未跑過，可到 **D1** → 你的資料庫 → **Console** 手動執行 `migrations/0002_create_menu_items.sql`、`0003_create_inquiry_types.sql`、`0004_alter_inquiries_reply_status.sql`。

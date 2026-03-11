@@ -17,14 +17,26 @@ export function InquiryTypesPage() {
   const load = () => {
     setLoading(true);
     setError(null);
+    // 有金鑰時用 admin API，無金鑰時用公開 API 仍可讀取列表
     const url = hasAdminKey() ? '/api/admin/inquiry-types' : '/api/inquiry-types';
     fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.items) setItems(data.items);
-        else setError(data.message || '載入失敗');
+      .then((res) => {
+        if (res.status === 501) {
+          setError('後端尚未設定 ADMIN_API_KEY。請在 Cloudflare Worker 的 Variables 中新增 ADMIN_API_KEY，並在後台上方輸入相同金鑰。');
+          return null;
+        }
+        if (res.status === 401) {
+          setError('金鑰錯誤或已過期，請重新在後台上方設定 API 金鑰。');
+          return res.json().then(() => null);
+        }
+        return res.json();
       })
-      .catch(() => setError('載入失敗'))
+      .then((data) => {
+        if (!data) return;
+        if (data.success && data.items) setItems(data.items);
+        else setError(data?.message || '載入失敗。若為正式環境，請確認已執行 D1 migrations（0002、0003）並已設定後端 ADMIN_API_KEY。');
+      })
+      .catch(() => setError('無法連線，請確認網路與後端服務。'))
       .finally(() => setLoading(false));
   };
 
@@ -111,7 +123,7 @@ export function InquiryTypesPage() {
 
       {!hasAdminKey() && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          請在 .env.local 設定 VITE_ADMIN_API_KEY 以啟用新增/編輯/刪除。
+          若尚未設定金鑰，請在頁面上方「後台未設定 API 金鑰」處輸入與後端 ADMIN_API_KEY 相同的金鑰，即可啟用新增／編輯／刪除。
         </div>
       )}
 
