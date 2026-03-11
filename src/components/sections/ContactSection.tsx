@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { companyInfo, inquiryTypes, contactDescription, supportDescription } from '../../data/content';
+import { companyInfo, inquiryTypes as fallbackInquiryTypes, contactDescription, supportDescription } from '../../data/content';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from 'lucide-react';
@@ -21,6 +21,19 @@ type ContactFormData = z.infer<typeof contactFormSchema>;
 
 export const ContactSection = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [inquiryTypeOptions, setInquiryTypeOptions] = useState<string[]>(fallbackInquiryTypes);
+
+  useEffect(() => {
+    fetch('/api/inquiry-types')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+          setInquiryTypeOptions(data.items.map((item: { label: string }) => item.label));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -234,7 +247,7 @@ export const ContactSection = () => {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     >
                       <option value="">請選擇洽詢內容</option>
-                      {inquiryTypes.map((type) => (
+                      {inquiryTypeOptions.map((type) => (
                         <option key={type} value={type}>
                           {type}
                         </option>
