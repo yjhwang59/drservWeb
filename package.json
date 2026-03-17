@@ -1,22 +1,22 @@
 {
   "name": "drserv-website",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:cf": "npm run build && wrangler pages dev",
+    "dev:cf": "npm run build && node scripts/check-wrangler-platform.mjs && wrangler dev",
+    "dev:api": "node scripts/check-wrangler-platform.mjs && wrangler dev --port 3001",
+    "dev:all": "npm run build && node scripts/check-wrangler-platform.mjs && concurrently -n api,web \"wrangler dev --port 3001\" \"npm run dev\"",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy",
+    "deploy": "npm run build && wrangler deploy",
     "d1:migrate": "wrangler d1 execute myd1_db --remote --file=migrations/0001_create_inquiries.sql",
     "d1:migrate:local": "wrangler d1 execute myd1_db --local --file=migrations/0001_create_inquiries.sql",
     "d1:latest": "wrangler d1 execute myd1_db --remote --command=\"SELECT id, organization, contact_name, email, inquiry_type, created_at FROM inquiries ORDER BY id DESC LIMIT 5;\"",
     "test:email": "curl -s -X POST https://www.drserv.com.tw/api/inquiry -H \"Content-Type: application/json\" -d \"{\\\"organization\\\":\\\"npm測試\\\",\\\"contactName\\\":\\\"測試\\\",\\\"phone\\\":\\\"0912345678\\\",\\\"email\\\":\\\"test@example.com\\\",\\\"inquiryType\\\":\\\"其他\\\",\\\"message\\\":\\\"npm run test:email 自動測試，請忽略。\\\"}\"",
-    "start:frontend": "vite",
-    "start:backend": "cd server && npm run start",
-    "start": "concurrently -n \"前端,後端\" -c blue,green \"npm run start:frontend\" \"npm run start:backend\""
+    "start": "vite"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

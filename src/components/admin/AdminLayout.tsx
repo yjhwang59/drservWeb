@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { MenuItemNode } from '../../types/admin';
 import { hasAdminKey, setAdminApiKey, verifyAdminKey } from '../../lib/adminApi';
+import { responseJson } from '../../lib/safeJson';
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -183,7 +184,7 @@ export function AdminLayout() {
 
   useEffect(() => {
     fetch('/api/menu')
-      .then((res) => res.json())
+      .then((res) => responseJson<{ success?: boolean; menu?: MenuItemNode[] }>(res))
       .then((data) => {
         if (data.success && Array.isArray(data.menu)) setMenu(data.menu);
       })

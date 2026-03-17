@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminFetch, hasAdminKey } from '../../lib/adminApi';
+import { responseJson } from '../../lib/safeJson';
 import type { InquiryRow } from '../../types/admin';
 import { ArrowLeft, Trash2 } from 'lucide-react';
+
+type DetailResponse = { success?: boolean; data?: InquiryRow; message?: string };
 
 export function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +27,7 @@ export function InquiryDetailPage() {
           setLoading(false);
           return null;
         }
-        return res.json();
+        return responseJson<DetailResponse>(res);
       })
       .then((json) => {
         if (!json) return;
@@ -51,7 +54,7 @@ export function InquiryDetailPage() {
         ...(adminReply.trim() ? { replied_at: new Date().toISOString() } : {}),
       }),
     })
-      .then((res) => res.json())
+      .then((res) => responseJson<DetailResponse>(res))
       .then((json) => {
         if (json.success && item) {
           setItem({ ...item, admin_reply: adminReply.trim(), status, replied_at: new Date().toISOString() });
@@ -64,7 +67,7 @@ export function InquiryDetailPage() {
   const handleDelete = () => {
     if (!id) return;
     adminFetch(`/api/admin/inquiries/${id}`, { method: 'DELETE' })
-      .then((res) => res.json())
+      .then((res) => responseJson<DetailResponse>(res))
       .then((json) => {
         if (json.success) navigate('/admin/inquiries');
         else setError(json.message || '刪除失敗');

@@ -19,6 +19,8 @@
 11. [疑難排解速查表](#11-疑難排解速查表)
 12. [專有名詞對照表](#12-專有名詞對照表)
 13. [建置心得](#13-建置心得)
+14. [側邊欄與後台選單](#14-側邊欄與後台選單)
+15. [後台 CRUD 管理](#15-後台-crud-管理)
 
 ---
 
@@ -254,6 +256,7 @@ interface Env {
   DB: D1Database;
   RESEND_API_KEY: string;
   MAIL_RECIPIENT: string;
+  ADMIN_API_KEY?: string;   // 後台 /api/admin/* 的 Bearer 認證金鑰
 }
 ```
 
@@ -414,6 +417,9 @@ npx wrangler deploy  # Worker 模式部署
 |--------|-----|------------|
 | `RESEND_API_KEY` | `re_xxxx...` | ✅ |
 | `MAIL_RECIPIENT` | `service@drserv.com.tw` | 選填 |
+| `ADMIN_API_KEY` | 自訂金鑰（後台 API 認證用） | ✅ 建議 |
+
+- **ADMIN_API_KEY**：後台管理（`/admin`）呼叫 `/api/admin/*` 時須在 Request Header 帶 `Authorization: Bearer <ADMIN_API_KEY>`。前端在後台頁面輸入相同金鑰後存於 localStorage，未設定時後端回傳 501。
 
 ### 注意事項
 
@@ -699,6 +705,116 @@ Account ID 可從以下位置取得：
 5. **本機跑不動就靠雲端**——Windows ARM64 目前不支援 wrangler 本地執行，與其糾結不如直接用 GitHub Actions
 
 > 期望這份實戰經驗能幫助到有緣的工程師，少走一些彎路。
+
+---
+
+## 14. 側邊欄與後台選單
+
+後台（`/admin`）使用**資料庫驅動的樹狀選單**，由 D1 的 `menu_items` 表提供資料，經 `GET /api/menu` 回傳樹結構，前端 `AdminLayout` 載入後渲染側邊欄。
+
+### 資料表：menu_items
+
+Migration 檔：`migrations/0002_create_menu_items.sql`
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | INTEGER PK | 主鍵 |
+| parent_id | INTEGER NULL | 父節點 ID，NULL 表示根項目 |
+| menu_code | TEXT UNIQUE | 選單代碼（如 `dashboard`、`contact_mgmt`） |
+| menu_name | TEXT | 顯示名稱（如「儀表板」、「聯絡我們管理」） |
+| menu_icon | TEXT | 圖示名稱，對應 Lucide 元件（如 `LayoutDashboard`、`Mail`） |
+| menu_url | TEXT | 連結路徑（`link` 用）；dropdown 可填 `#` |
+| menu_type | TEXT | `link`、`dropdown`、`divider`、`header` |
+| sort_order | INTEGER | 排序數字，越小越前面 |
+| is_visible | INTEGER | 1 顯示、0 隱藏 |
+
+- **link**：單一連結，點擊導向 `menu_url`
+- **dropdown**：父項目，底下有 `children`，不直接導向
+- **divider**：視覺分隔線
+- **header**：區塊標題（不連結）
+
+### API：GET /api/menu
+
+- **認證**：不需要，公開 API
+- **回應**：`{ success: true, menu: [ ... ] }`，`menu` 為樹狀陣列（根節點含 `children`）
+- **邏輯**：Worker 查詢 `menu_items WHERE is_visible = 1`，依 `parent_id`、`sort_order` 組合成樹
+
+### 前端：AdminLayout 與選單渲染
+
+- **入口**：`src/components/admin/AdminLayout.tsx`
+- **載入**：`useEffect` 內 `fetch('/api/menu')` → 設定 `menu` state
+- **容器**：側邊欄 `<ul id="menu-list">`，依 `menu` 遞迴渲染 `MenuItem`
+- **MenuItem**：依 `menu_type` 渲染連結、下拉（展開/收合）、分隔線或標題；目前圖示對應 `LayoutDashboard`、`Mail`、`List`、`Inbox`（Lucide）
+- **響應式**：`sidebarOpen` 控制側欄顯示/隱藏；小螢幕有遮罩與開關按鈕
+
+### 預設種子資料（0002 內 INSERT）
+
+- 根：儀表板（`/admin`）、聯絡我們管理（dropdown）
+- 聯絡我們管理子項：洽詢內容選項（`/admin/inquiry-types`）、表單回覆（`/admin/inquiries`）
+
+若要新增或調整選單，可於 D1 Console 對 `menu_items` 做 INSERT/UPDATE，或未來擴充 Admin API 做選單 CRUD。
+
+---
+
+## 15. 後台 CRUD 管理
+
+後台提供**洽詢內容選項**（inquiry_types）與**表單回覆**（inquiries）的 CRUD，所有 `/api/admin/*` 皆需 **Bearer 金鑰**認證。
+
+### 認證方式
+
+| 位置 | 說明 |
+|------|------|
+| **Cloudflare Worker** | 環境變數 `ADMIN_API_KEY`（Dashboard → Worker → Settings → Variables，建議 Encrypt） |
+| **前端** | 後台頁頂輸入與後端相同的金鑰，存於 localStorage（`src/lib/adminApi.ts`）；未設定時僅能讀取公開 API（如 `/api/inquiry-types`），無法呼叫 admin API |
+| **Request** | `Authorization: Bearer <ADMIN_API_KEY>` |
+
+- 未設定 `ADMIN_API_KEY`：回傳 `501`、訊息「後台未設定 ADMIN_API_KEY」
+- 金鑰錯誤或未帶：回傳 `401`、訊息「未授權」
+
+### 後台路由（前端）
+
+| 路徑 | 元件 | 說明 |
+|------|------|------|
+| `/admin` | AdminDashboard | 儀表板，連結到洽詢選項與表單回覆 |
+| `/admin/inquiry-types` | InquiryTypesPage | 洽詢內容選項 CRUD |
+| `/admin/inquiries` | InquiriesListPage | 洽詢列表（分頁、篩選） |
+| `/admin/inquiries/:id` | InquiryDetailPage | 單筆詳情、回覆、刪除 |
+
+### 洽詢內容選項 CRUD（inquiry_types）
+
+資料表：`migrations/0003_create_inquiry_types.sql`（`id`, `label`, `sort_order`）
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | `/api/admin/inquiry-types` | 列表（與公開 GET `/api/inquiry-types` 資料相同，但需 Bearer） |
+| POST | `/api/admin/inquiry-types` | 新增，body: `{ label, sort_order? }` |
+| PUT | `/api/admin/inquiry-types/:id` | 更新，body: `{ label?, sort_order? }` |
+| DELETE | `/api/admin/inquiry-types/:id` | 刪除 |
+
+- 公開 **GET `/api/inquiry-types`** 供官網聯絡表單下拉選單使用，不需認證。
+
+### 洽詢表單回覆 CRUD（inquiries）
+
+| 方法 | 路徑 | 說明 |
+|------|------|------|
+| GET | `/api/admin/inquiries` | 列表，query: `page`, `limit`, `status`, `inquiry_type` |
+| GET | `/api/admin/inquiries/:id` | 單筆詳情 |
+| PATCH | `/api/admin/inquiries/:id` | 更新，body: `{ admin_reply?, status?, replied_at? }`（回覆、狀態） |
+| DELETE | `/api/admin/inquiries/:id` | 刪除 |
+
+- 列表支援分頁（`page`、`limit`）與篩選（`status`、`inquiry_type`）。
+
+### Worker 中的實作要點
+
+- **adminAuth**：檢查 `env.ADMIN_API_KEY` 與 `Authorization: Bearer <token>`，不符則回傳 401/501
+- 所有 `/api/admin/*` 先經 `adminAuth` 再分派到對應 handler
+- 洽詢內容：`handleAdminGetInquiryTypes`、`handleAdminPostInquiryTypes`、`handleAdminPutInquiryTypes`、`handleAdminDeleteInquiryTypes`
+- 洽詢表單：`handleAdminGetInquiries`、`handleAdminGetInquiry`、`handleAdminPatchInquiry`、`handleAdminDeleteInquiry`
+
+### 本地開發
+
+- 後端：`server/index.js` 以 `ADMIN_API_KEY`（或 `.env`）做 `adminAuth`，路由與 Worker 對齊（GET/POST/PUT/DELETE inquiry-types、GET/GET/PATCH/DELETE inquiries）。
+- 前端：同一套 `adminApi.ts`，在本地同樣於後台輸入金鑰即可呼叫本地 API。
 
 ---
 

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { adminFetch } from '../../lib/adminApi';
+import { responseJson } from '../../lib/safeJson';
 import type { InquiryRow } from '../../types/admin';
+
+type ListResponse = { success?: boolean; data?: InquiryRow[]; total?: number; message?: string };
 
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
@@ -27,9 +30,9 @@ export function InquiriesListPage() {
       .then((res) => {
         if (res.status === 401) {
           setError('請設定 VITE_ADMIN_API_KEY 以檢視列表');
-          return res.json().then(() => {});
+          return responseJson(res).then(() => ({} as ListResponse));
         }
-        return res.json();
+        return responseJson<ListResponse>(res);
       })
       .then((json) => {
         if (json && json.success) {

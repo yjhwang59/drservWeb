@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminFetch, hasAdminKey } from '../../lib/adminApi';
+import { responseJson } from '../../lib/safeJson';
 import type { InquiryTypeItem } from '../../types/admin';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
@@ -28,16 +29,20 @@ export function InquiryTypesPage() {
         }
         if (res.status === 401) {
           setError('金鑰錯誤或已過期，請重新在後台上方設定 API 金鑰。');
-          return res.json().then(() => null);
+          return responseJson(res).then(() => null);
         }
-        return res.json();
+        if (res.status === 500) {
+          setError('伺服器錯誤。若為正式環境(www.drserv.com.tw)，請到 Cloudflare Dashboard → D1 → 你的資料庫 → Console，手動執行 migrations/0003_create_inquiry_types.sql 建立洽詢內容表。');
+          return responseJson(res).then(() => null);
+        }
+        return responseJson<{ success?: boolean; items?: InquiryTypeItem[]; message?: string }>(res);
       })
       .then((data) => {
         if (!data) return;
         if (data.success && data.items) setItems(data.items);
         else setError(data?.message || '載入失敗。若為正式環境，請確認已執行 D1 migrations（0002、0003）並已設定後端 ADMIN_API_KEY。');
       })
-      .catch(() => setError('無法連線，請確認網路與後端服務。'))
+      .catch((e) => setError(e instanceof Error ? e.message : '無法連線，請確認網路與後端服務。'))
       .finally(() => setLoading(false));
   };
 
@@ -68,7 +73,7 @@ export function InquiryTypesPage() {
         method: 'PUT',
         body: JSON.stringify({ label: formLabel.trim(), sort_order: formSortOrder }),
       })
-        .then((res) => res.json())
+        .then((res) => responseJson<{ success?: boolean; message?: string }>(res))
         .then((data) => {
           if (data.success) {
             setShowForm(false);
@@ -82,7 +87,7 @@ export function InquiryTypesPage() {
         method: 'POST',
         body: JSON.stringify({ label: formLabel.trim(), sort_order: formSortOrder }),
       })
-        .then((res) => res.json())
+        .then((res) => responseJson<{ success?: boolean; message?: string }>(res))
         .then((data) => {
           if (data.success) {
             setShowForm(false);
@@ -96,7 +101,7 @@ export function InquiryTypesPage() {
 
   const doDelete = (id: number) => {
     adminFetch(`/api/admin/inquiry-types/${id}`, { method: 'DELETE' })
-      .then((res) => res.json())
+      .then((res) => responseJson<{ success?: boolean; message?: string }>(res))
       .then((data) => {
         if (data.success) {
           setDeleteConfirm(null);

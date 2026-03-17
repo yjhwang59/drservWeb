@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { responseJson } from '../../lib/safeJson';
 import { companyInfo, inquiryTypes as fallbackInquiryTypes, contactDescription, supportDescription } from '../../data/content';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -25,10 +26,10 @@ export const ContactSection = () => {
 
   useEffect(() => {
     fetch('/api/inquiry-types')
-      .then((res) => res.json())
+      .then((res) => responseJson<{ success?: boolean; items?: { label: string }[] }>(res))
       .then((data) => {
         if (data.success && Array.isArray(data.items) && data.items.length > 0) {
-          setInquiryTypeOptions(data.items.map((item: { label: string }) => item.label));
+          setInquiryTypeOptions(data.items.map((item) => item.label));
         }
       })
       .catch(() => {});
@@ -50,7 +51,7 @@ export const ContactSection = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      const result = await res.json();
+      const result = await responseJson<{ message?: string }>(res);
 
       if (!res.ok) {
         throw new Error(result.message || '送出失敗，請稍後再試');
