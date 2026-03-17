@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminFetch, hasAdminKey } from '../../lib/adminApi';
 import { responseJson } from '../../lib/safeJson';
-import type { InquiryRow } from '../../types/admin';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import type { InquiryRow, InquiryReplyRow } from '../../types/admin';
+import { ArrowLeft, Trash2, Mail, MailX } from 'lucide-react';
 
 type DetailResponse = { success?: boolean; data?: InquiryRow; message?: string };
+type PatchResponse = { success?: boolean; message?: string; emailSent?: boolean };
+type RepliesResponse = { success?: boolean; data?: InquiryReplyRow[]; message?: string };
 
 export function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,8 +17,23 @@ export function InquiryDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
   const [status, setStatus] = useState('');
+  const [sendToCustomer, setSendToCustomer] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [replyHistory, setReplyHistory] = useState<InquiryReplyRow[]>([]);
+  const [loadingReplies, setLoadingReplies] = useState(false);
+
+  const fetchReplies = (inquiryId: string) => {
+    setLoadingReplies(true);
+    adminFetch(`/api/admin/inquiries/${inquiryId}/replies`)
+      .then((res) => responseJson<RepliesResponse>(res))
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) setReplyHistory(json.data);
+      })
+      .catch(() => setReplyHistory([]))
+      .finally(() => setLoadingReplies(false));
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -42,22 +59,33 @@ export function InquiryDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (id && hasAdminKey()) fetchReplies(id);
+  }, [id]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     setSaving(true);
+    setError(null);
     adminFetch(`/api/admin/inquiries/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({
         admin_reply: adminReply.trim(),
         status,
+        send_to_customer: sendToCustomer,
         ...(adminReply.trim() ? { replied_at: new Date().toISOString() } : {}),
       }),
     })
-      .then((res) => responseJson<DetailResponse>(res))
+      .then((res) => responseJson<PatchResponse>(res))
       .then((json) => {
         if (json.success && item) {
           setItem({ ...item, admin_reply: adminReply.trim(), status, replied_at: new Date().toISOString() });
+          setSuccessMessage(
+            json.emailSent ? '已儲存並已寄送給提問者' : '已儲存',
+          );
+          setTimeout(() => setSuccessMessage(null), 4000);
+          fetchReplies(id);
         } else setError(json.message || '更新失敗');
       })
       .catch(() => setError('更新失敗'))
@@ -167,6 +195,14 @@ export function InquiryDetailPage() {
         {hasAdminKey() && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">回覆與狀態</h2>
+            <p className="mb-4 text-sm text-gray-500">
+              儲存後可勾選「回傳給提問者」一併寄送 Email；下方可查看過往回覆紀錄。
+            </p>
+            {successMessage && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                {successMessage}
+              </div>
+            )}
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label htmlFor="admin_reply" className="block text-sm font-medium text-gray-700 mb-1">
@@ -180,6 +216,18 @@ export function InquiryDetailPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                   placeholder="輸入回覆內容..."
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="send_to_customer"
+                  type="checkbox"
+                  checked={sendToCustomer}
+                  onChange={(e) => setSendToCustomer(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="send_to_customer" className="text-sm font-medium text-gray-700">
+                  回傳給提問者
+                </label>
               </div>
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
@@ -207,6 +255,41 @@ export function InquiryDetailPage() {
             {item.replied_at && (
               <p className="mt-3 text-sm text-gray-500">上次回覆時間：{item.replied_at}</p>
             )}
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <h3 className="mb-3 text-base font-semibold text-gray-900">過往回覆</h3>
+              {loadingReplies ? (
+                <p className="text-sm text-gray-500">載入中...</p>
+              ) : replyHistory.length === 0 ? (
+                <p className="text-sm text-gray-500">尚無過往回覆</p>
+              ) : (
+                <ul className="space-y-3">
+                  {replyHistory.map((r) => (
+                    <li
+                      key={r.id}
+                      className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm"
+                    >
+                      <div className="mb-1 flex items-center justify-between text-gray-500">
+                        <span>{r.replied_at}</span>
+                        {r.sent_to_customer ? (
+                          <span className="inline-flex items-center gap-1 text-green-700">
+                            <Mail size={14} />
+                            已寄送給提問者
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-gray-400">
+                            <MailX size={14} />
+                            未寄送
+                          </span>
+                        )}
+                      </div>
+                      <p className="whitespace-pre-wrap text-gray-700">
+                        {r.reply_text.length > 80 ? `${r.reply_text.slice(0, 80)}...` : r.reply_text}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
 

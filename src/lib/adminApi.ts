@@ -2,7 +2,7 @@ const STORAGE_KEY = 'admin_api_key';
 
 function getStoredKey(): string {
   if (typeof window === 'undefined') return '';
-  return sessionStorage.getItem(STORAGE_KEY) ?? '';
+  return localStorage.getItem(STORAGE_KEY) ?? '';
 }
 
 function getAdminKey(): string {
@@ -29,15 +29,15 @@ export function hasAdminKey(): boolean {
   return Boolean(getAdminKey());
 }
 
-/** 設定後台 API 金鑰（存於 sessionStorage），請與後端 ADMIN_API_KEY 相同。設定後請重新整理頁面。 */
+/** 設定後台 API 金鑰（存於 localStorage，關閉分頁後仍保留），請與後端 ADMIN_API_KEY 相同。設定後請重新整理頁面。 */
 export function setAdminApiKey(key: string): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(STORAGE_KEY, key.trim());
+  localStorage.setItem(STORAGE_KEY, key.trim());
 }
 
 export function clearAdminApiKey(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 /** 驗證目前金鑰是否與後端一致。回傳 { ok, status, message }。 */

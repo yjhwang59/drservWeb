@@ -94,6 +94,63 @@ async function sendEmail(
   }
 }
 
+async function sendReplyToCustomer(
+  apiKey: string,
+  toEmail: string,
+  replyText: string,
+  context?: { organization?: string; inquiry_type?: string },
+): Promise<{ sent: boolean; error?: string }> {
+  if (!apiKey) {
+    console.error('[sendReplyToCustomer] RESEND_API_KEY not configured');
+    return { sent: false, error: 'RESEND_API_KEY not configured' };
+  }
+  const trimmed = toEmail.trim();
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return { sent: false, error: 'Invalid recipient email' };
+  }
+  const org = context?.organization ?? '';
+  const type = context?.inquiry_type ?? '';
+  const body = [
+    '您好，',
+    '',
+    '以下是捨得資訊針對您的洽詢所回覆的內容：',
+    '',
+    '---',
+    replyText,
+    '---',
+    '',
+    org || type ? `（洽詢：${[org, type].filter(Boolean).join(' - ')}）` : '',
+    '',
+    '此信件由捨得資訊官網後台寄出，如有疑問歡迎再與我們聯絡。',
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `捨得資訊官網 <noreply@drserv.com.tw>`,
+        to: [trimmed],
+        subject: '【捨得資訊】回覆您的洽詢',
+        text: body,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`[sendReplyToCustomer] Resend API error (${res.status}): ${err}`);
+      return { sent: false, error: err };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error(`[sendReplyToCustomer] Exception: ${String(err)}`);
+    return { sent: false, error: String(err) };
+  }
+}
+
 function adminAuth(request: Request, env: Env): Response | null {
   const key = env.ADMIN_API_KEY;
   if (!key) return Response.json({ success: false, message: '後台未設定 ADMIN_API_KEY' }, { status: 501 });
@@ -311,33 +368,82 @@ async function handleAdminPatchInquiry(id: number, request: Request, env: Env): 
   } catch {
     return Response.json({ success: false, message: '無效的 JSON 格式' }, { status: 400 });
   }
-  const existing = await env.DB.prepare('SELECT id FROM inquiries WHERE id = ?').bind(id).first();
+  const existing = await env.DB.prepare(
+    'SELECT id, email, organization, inquiry_type FROM inquiries WHERE id = ?',
+  )
+    .bind(id)
+    .first();
   if (!existing) return Response.json({ success: false, message: '找不到該筆洽詢' }, { status: 404 });
+  const row = existing as { id: number; email: string; organization: string; inquiry_type: string };
   const updates: string[] = [];
   const params: (string | number)[] = [];
+  const replyText =
+    body.admin_reply !== undefined ? String(body.admin_reply).trim() : undefined;
+  const sendToCustomer = Boolean(body.send_to_customer);
+  const repliedAt =
+    body.replied_at !== undefined
+      ? body.replied_at
+        ? String(body.replied_at)
+        : null
+      : replyText
+        ? new Date().toISOString()
+        : null;
+
   if (body.admin_reply !== undefined) {
     updates.push('admin_reply = ?');
-    params.push(String(body.admin_reply).trim());
+    params.push(replyText ?? '');
   }
   if (body.replied_at !== undefined) {
     updates.push('replied_at = ?');
     params.push(body.replied_at ? String(body.replied_at) : null);
+  } else if (replyText && repliedAt) {
+    updates.push('replied_at = ?');
+    params.push(repliedAt);
   }
   if (body.status !== undefined) {
     updates.push('status = ?');
     params.push(String(body.status).trim());
   }
   if (updates.length === 0) return Response.json({ success: true, message: '無變更' });
-  if (body.admin_reply !== undefined && body.replied_at === undefined) {
-    updates.push('replied_at = ?');
-    params.push(new Date().toISOString());
+
+  let emailSent = false;
+  if (replyText !== undefined && replyText !== '') {
+    const at = repliedAt ?? new Date().toISOString();
+    if (sendToCustomer && row.email) {
+      const mailResult = await sendReplyToCustomer(env.RESEND_API_KEY, row.email, replyText, {
+        organization: row.organization,
+        inquiry_type: row.inquiry_type,
+      });
+      emailSent = mailResult.sent;
+    }
+    await env.DB.prepare(
+      'INSERT INTO inquiry_replies (inquiry_id, reply_text, replied_at, sent_to_customer) VALUES (?, ?, ?, ?)',
+    )
+      .bind(id, replyText, at, sendToCustomer && emailSent ? 1 : 0)
+      .run();
   }
+
   params.push(id);
+  await env.DB.prepare('UPDATE inquiries SET ' + updates.join(', ') + ' WHERE id = ?').bind(...params).run();
+  return Response.json({
+    success: true,
+    message: emailSent ? '已更新並已寄送給提問者' : '已更新',
+    emailSent,
+  });
+}
+
+async function handleAdminGetInquiryReplies(id: number, env: Env): Promise<Response> {
+  const existing = await env.DB.prepare('SELECT id FROM inquiries WHERE id = ?').bind(id).first();
+  if (!existing) return Response.json({ success: false, message: '找不到該筆洽詢' }, { status: 404 });
   try {
-    await env.DB.prepare('UPDATE inquiries SET ' + updates.join(', ') + ' WHERE id = ?').bind(...params).run();
-    return Response.json({ success: true, message: '已更新' });
+    const { results } = await env.DB.prepare(
+      'SELECT id, inquiry_id, reply_text, replied_at, sent_to_customer FROM inquiry_replies WHERE inquiry_id = ? ORDER BY replied_at DESC',
+    )
+      .bind(id)
+      .all();
+    return Response.json({ success: true, data: results ?? [] });
   } catch (err) {
-    console.error('PATCH /api/admin/inquiries/:id:', err);
+    console.error('GET /api/admin/inquiries/:id/replies:', err);
     return Response.json({ success: false, message: '伺服器錯誤' }, { status: 500 });
   }
 }
@@ -379,6 +485,13 @@ export default {
     }
 
     if (pathname === '/api/admin/inquiries' && request.method === 'GET') return handleAdminGetInquiries(url, env);
+
+    const inquiriesRepliesMatch = pathname.match(/^\/api\/admin\/inquiries\/(\d+)\/replies$/);
+    if (inquiriesRepliesMatch && request.method === 'GET') {
+      const id = parseInt(inquiriesRepliesMatch[1], 10);
+      if (!Number.isInteger(id) || id < 1) return Response.json({ success: false, message: '無效的 id' }, { status: 400 });
+      return handleAdminGetInquiryReplies(id, env);
+    }
 
     const inquiriesIdMatch = pathname.match(/^\/api\/admin\/inquiries\/(\d+)$/);
     if (inquiriesIdMatch) {

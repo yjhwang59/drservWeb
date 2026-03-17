@@ -29,3 +29,11 @@ export interface InquiryRow {
   admin_reply?: string | null;
   replied_at?: string | null;
 }
+
+export interface InquiryReplyRow {
+  id: number;
+  inquiry_id: number;
+  reply_text: string;
+  replied_at: string;
+  sent_to_customer: number;
+}
