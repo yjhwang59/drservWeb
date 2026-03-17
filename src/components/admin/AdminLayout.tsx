@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
   Mail,
@@ -9,14 +9,14 @@ import {
   ChevronRight,
   Menu,
   X,
-  Key,
   CheckCircle2,
   AlertCircle,
   Loader2,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import type { MenuItemNode } from '../../types/admin';
-import { hasAdminKey, setAdminApiKey, verifyAdminKey } from '../../lib/adminApi';
+import { clearAdminApiKey, verifyAdminKey } from '../../lib/adminApi';
 import { responseJson } from '../../lib/safeJson';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -94,52 +94,6 @@ function MenuItem({ item, depth = 0 }: { item: MenuItemNode; depth?: number }) {
   );
 }
 
-function AdminKeyBanner({ onSet }: { onSet: () => void }) {
-  const [key, setKey] = useState('');
-  const [collapsed, setCollapsed] = useState(true);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = key.trim();
-    if (!v) return;
-    setAdminApiKey(v);
-    onSet();
-  };
-
-  return (
-    <div className="flex flex-1 flex-wrap items-center gap-2 py-2">
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-800">
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          className="inline-flex items-center gap-1.5 font-medium"
-        >
-          <Key size={16} />
-          {collapsed ? '後台未設定 API 金鑰，按此設定' : '取消'}
-        </button>
-      </div>
-      {!collapsed && (
-        <form onSubmit={handleSubmit} className="inline-flex flex-wrap items-center gap-2">
-          <input
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="請輸入與後端 ADMIN_API_KEY 相同的金鑰"
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm min-w-[200px]"
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            className="rounded bg-primary-600 px-3 py-1.5 text-sm text-white hover:bg-primary-700"
-          >
-            設定並重新載入
-          </button>
-        </form>
-      )}
-    </div>
-  );
-}
-
 function VerifyKeyButton() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -178,11 +132,15 @@ function VerifyKeyButton() {
 }
 
 export function AdminLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [menu, setMenu] = useState<MenuItemNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isLoginPage = location.pathname === '/admin/login';
 
   useEffect(() => {
+    if (isLoginPage) return;
     fetch('/api/menu')
       .then((res) => responseJson<{ success?: boolean; menu?: MenuItemNode[] }>(res))
       .then((data) => {
@@ -190,7 +148,16 @@ export function AdminLayout() {
       })
       .catch(() => setMenu([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isLoginPage]);
+
+  const handleLogout = () => {
+    clearAdminApiKey();
+    navigate('/admin/login', { replace: true });
+  };
+
+  if (isLoginPage) {
+    return <Outlet />;
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -249,8 +216,17 @@ export function AdminLayout() {
           >
             <Menu size={24} />
           </button>
-          {!hasAdminKey() && <AdminKeyBanner onSet={() => window.location.reload()} />}
-          {hasAdminKey() && <VerifyKeyButton />}
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <VerifyKeyButton />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <LogOut size={14} />
+              登出
+            </button>
+          </div>
         </header>
         <main className="flex-1 p-6">
           <Outlet />

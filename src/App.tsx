@@ -12,6 +12,8 @@ import { DeliverablesSection } from './components/sections/DeliverablesSection';
 import { ProcessFlowSection } from './components/sections/ProcessFlowSection';
 import { ContactSection } from './components/sections/ContactSection';
 import { AdminLayout } from './components/admin/AdminLayout';
+import { AdminLoginPage } from './components/admin/AdminLoginPage';
+import { RequireAdminKey } from './components/admin/RequireAdminKey';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { InquiryTypesPage } from './components/admin/InquiryTypesPage';
 import { InquiriesListPage } from './components/admin/InquiriesListPage';
@@ -43,10 +45,13 @@ function App() {
       <Routes>
         <Route path="/" element={<PublicSite />} />
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="inquiry-types" element={<InquiryTypesPage />} />
-          <Route path="inquiries" element={<InquiriesListPage />} />
-          <Route path="inquiries/:id" element={<InquiryDetailPage />} />
+          <Route path="login" element={<AdminLoginPage />} />
+          <Route element={<RequireAdminKey />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="inquiry-types" element={<InquiryTypesPage />} />
+            <Route path="inquiries" element={<InquiriesListPage />} />
+            <Route path="inquiries/:id" element={<InquiryDetailPage />} />
+          </Route>
         </Route>
       </Routes>
     </HelmetProvider>
