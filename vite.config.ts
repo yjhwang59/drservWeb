@@ -10,7 +10,7 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   server: {
-    port: 3000,
+    port: 3520,
     open: true,
     proxy: {
       '/api': {
@@ -18,6 +18,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  preview: {
+    port: 3520,
   },
 })
 

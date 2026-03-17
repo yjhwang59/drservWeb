@@ -64,7 +64,7 @@ start "DrServ-Frontend" /d "%~dp0" cmd /k "npm run dev || echo Frontend exited w
 
 echo.
 echo Two windows opened: Backend API and Frontend dev server.
-echo   Frontend: http://localhost:3000  (open in browser)
+echo   Frontend: http://localhost:3520  (open in browser)
 echo   Backend API: http://localhost:3001  (health: http://localhost:3001/api/health)
 echo.
 echo If backend is not responding, check the "DrServ-Backend" window for errors.

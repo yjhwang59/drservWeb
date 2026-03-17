@@ -30,7 +30,7 @@ if (-not (Test-Path "$projectPath\node_modules")) {
 
 # 啟動開發伺服器
 Write-Host "正在啟動開發伺服器..." -ForegroundColor Green
-Write-Host "網站將在 http://localhost:3000 啟動" -ForegroundColor Cyan
+Write-Host "網站將在 http://localhost:3520 啟動" -ForegroundColor Cyan
 Write-Host "按 Ctrl+C 可停止伺服器" -ForegroundColor Yellow
 Write-Host ""
 

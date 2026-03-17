@@ -25,7 +25,7 @@ $Shortcut.Save()
 Write-Host "✓ 已建立啟動捷徑：$shortcutPath" -ForegroundColor Green
 Write-Host ""
 Write-Host "設定完成！重新開機後開發伺服器會自動啟動。" -ForegroundColor Cyan
-Write-Host "網站將在 http://localhost:3000 啟動" -ForegroundColor Yellow
+Write-Host "網站將在 http://localhost:3520 啟動" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "如需移除自動啟動，請刪除：" -ForegroundColor Gray
 Write-Host "  $shortcutPath" -ForegroundColor Gray
